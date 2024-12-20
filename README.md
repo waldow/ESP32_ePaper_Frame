@@ -1,5 +1,5 @@
 # ESP32_ePaper_Frame
-Smart E-Paper frame controlled over wifi, using ESP32 and 7.5inch waveshare E-Ink display.
+This fork tries to create a Smart E-Paper frame controlled over wifi, using ESP32 and 7-color AceP 7.3inch waveshare E-Ink display.
 
 ![Demo Image 1](https://raw.githubusercontent.com/dani3lwinter/ESP32_ePaper_Frame/master/readme%20images/img1.jpg)
 
@@ -15,8 +15,8 @@ Clone/download both libraries and save them to your Arduino libraries folder (us
 
 ### Hardware
 - ESP32 microcontroller
-- 7.5inch E-Ink display with driver board for ESP32 
-([Waveshare](https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT_(B))).
+- 7.3inch E-Ink display with driver board for ESP32 
+([Waveshare](https://www.waveshare.com/7.3inch-e-paper-hat-f.htm)).
 
 ## Installation
 1. Open *Smart_ePaper_Frame.ino* file with Arduino.
@@ -33,7 +33,7 @@ Clone/download both libraries and save them to your Arduino libraries folder (us
     };
     ```
 
-2. Configure the SPI pins connected to the display driver board in the *display.h* file:
+2. Adapt the SPI pins connected to the display driver board in the *display.h* file:
     ```cpp
     #define PIN_SPI_SCK     18
     #define PIN_SPI_DIN     23
