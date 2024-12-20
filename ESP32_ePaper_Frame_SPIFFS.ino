@@ -9,9 +9,12 @@ AsyncWebSocket ws("/test");
 
 TaskHandle_t Task1 = NULL;
 
-void driveDisplay(void *parameter) {
-  TurnOnDisplay();
-  vTaskSuspend(Task1);
+void driveDisplay(void *parameter) {  //running on another core to avoid watchdog timer error
+  while (true) {
+    Serial.println("task running on another core");
+    TurnOnDisplay();
+    vTaskSuspend(Task1);
+  }
 }
 
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
@@ -41,7 +44,7 @@ char *responseToNewImage() {
   if (isDisplayBusy()) {
     return "BUSY";
   } else {
-    //displayStartTransmission();
+    sendCommand(0x10);
     return "OK";
   }
 }
@@ -53,17 +56,14 @@ void Clear(unsigned char color) {
       sendData((color << 4) | color);
     }
   }
-
-  vTaskResume(Task1);
-  //TurnOnDisplay();
+  vTaskResume(Task1);  //call TurnOnDisplay()
 }
 
 // Shows the loaded image
 void updateDisplay_withoutIdle() {
   // Refresh.
-  vTaskResume(Task1);
+  vTaskResume(Task1);  //call TurnOnDisplay()
   Serial.println("Update successful");
-  Sleep();
 }
 
 void setup() {

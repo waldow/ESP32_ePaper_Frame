@@ -5,6 +5,8 @@
 #include <SPI.h>
 SPIClass hspi(HSPI);
 
+//some functions were replaced/copied from epd7in3f.cpp from waveshare's demo code
+
 #define EPD_7IN3F_BLACK 0x0   /// 000
 #define EPD_7IN3F_WHITE 0x1   ///	001
 #define EPD_7IN3F_GREEN 0x2   ///	010
@@ -14,7 +16,7 @@ SPIClass hspi(HSPI);
 #define EPD_7IN3F_ORANGE 0x6  ///	110
 #define EPD_7IN3F_CLEAN 0x7   ///	111   unavailable  Afterimage
 
-// SPI pins.
+// SPI pins. Adapt to your wiring
 #define PIN_SPI_SCK 12
 #define PIN_SPI_DIN 11
 #define PIN_SPI_CS 15
@@ -67,22 +69,27 @@ bool isDisplayBusy() {
 void EPD_7IN3F_BusyHigh()  // If BUSYN=0 then waiting
 {
   while (!digitalRead(PIN_SPI_BUSY)) {
-    yield();
+    //yield();
     delay(1);
   }
 }
 
-void TurnOnDisplay() {
+void TurnOnDisplay() {  //runs on another core to avoid watchdog timer error
+  Serial.println("TurnOnDisplay called");
+  Serial.println("power on");
   sendCommand(0x04);  // POWER_ON
   EPD_7IN3F_BusyHigh();
-
+  //yield();
+  Serial.println("refresh");
   sendCommand(0x12);  // DISPLAY_REFRESH
   sendData(0x00);
   EPD_7IN3F_BusyHigh();
-
+  //yield();
+  Serial.println("power off");
   sendCommand(0x02);  // POWER_OFF
   sendData(0x00);
   EPD_7IN3F_BusyHigh();
+  //yield();
 }
 
 int IfInit(void) {
@@ -92,7 +99,7 @@ int IfInit(void) {
   pinMode(PIN_SPI_DC, OUTPUT);
   pinMode(PIN_SPI_BUSY, INPUT);
   hspi.begin(PIN_SPI_SCK, -1, PIN_SPI_DIN);
-  hspi.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE0));
+  hspi.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
 
   return 0;
 }
@@ -204,11 +211,6 @@ void Sleep(void) {
   digitalWrite(PIN_SPI_RST, 0);  // Reset
 }
 
-void displayStartTransmission() {
-  sendCommand(0x10);  // DATA_START_TRANSMISSION_1
-  delay(2);
-}
-
 // Converts one pixel from input encoding (2 bits) to output encoding (4 bits).
 byte convertPixel(char input, byte mask, int shift) {
   const byte value = (input & mask) >> shift;
@@ -240,43 +242,30 @@ byte convertPixel(char input, byte mask, int shift) {
   }
 }
 
-void EPD_7IN3F_Display(const char* image) {
-  unsigned long i, j;
-
-  sendCommand(0x10);
-  for (i = 0; i < 480; i++) {
-    for (j = 0; j < 800 / 2; j++) {
+void EPD_7IN3F_DisplaySegment(const char* image, unsigned long startRow, unsigned long endRow) {
+  for (unsigned long i = startRow; i < endRow; i++) {
+    for (unsigned long j = 0; j < 800 / 2; j++) {
       sendData(image[j + 800 / 2 * i]);
     }
+    // Yield to the FreeRTOS scheduler to reset the watchdog
+    delay(1);
   }
+}
 
-  TurnOnDisplay();
+void EPD_7IN3F_Display(const char* image) {
+  const unsigned long rowsPerChunk = 10;  // Number of rows to process per segment
+
+  for (unsigned long startRow = 0; startRow < 480; startRow += rowsPerChunk) {
+    unsigned long endRow = startRow + rowsPerChunk;
+    if (endRow > 480) endRow = 480;  // Ensure we don't exceed the total rows
+    EPD_7IN3F_DisplaySegment(image, startRow, endRow);
+  }
 }
 
 // Loads partial image data onto the display.
 void loadImage(const char* image_data, size_t length) {
   Serial.printf("Loading image data: %d bytes\n", length);
-/*
-  // Each byte contains 4 pixels encoded with 3 bits per pixel.
-  for (int i = 0; i < length; i++) {
-    // Extract 4 input pixels.
-    const byte p1 = convertPixel(image_data[i], 0xE0, 5);
-    const byte p2 = convertPixel(image_data[i], 0x1C, 2);
-    const byte p3 = convertPixel(image_data[i], 0x03, 0);
-
-    // Combine pairs of pixels into bytes for sending.
-    sendData((p1 << 4) | p2);
-    sendData((p3 << 4) | 0x0);  // Padding with 0 if needed
-  }*/
   EPD_7IN3F_Display(image_data);
-}
-
-// Shows the loaded image and sends the display to sleep.
-void updateDisplay() {
-  // Refresh.
-  TurnOnDisplay();
-  Serial.println("Update successful");
-  //Sleep();
 }
 
 #endif  // display_h
