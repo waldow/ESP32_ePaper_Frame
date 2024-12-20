@@ -274,7 +274,15 @@ body{
 		}
 	}
 
-	var PALETTE = [[0  , 0  , 0  ], [255, 255, 255], [128, 0  , 0  ]];
+	    var PALETTE = [
+        [0, 0, 0],        // Black
+        [255, 255, 255],  // White
+        [0, 255, 0],      // Green
+        [0, 0, 255],      // Blue
+        [255, 0, 0],      // Red
+        [255, 255, 0],    // Yellow
+        [255, 165, 0]     // Orange
+    ];
 					 
 	function dist_to_pixel(r, g, b, color){
 		var d1 = Math.abs(r-color[0]);
@@ -283,71 +291,69 @@ body{
 		return (d1 + d2 + d3);
 	}
 	
-	function find_closest_palette_color(r, g, b){
-		var min_dist = 1000;
-		var closest_color = [0,255,0];
-		var color;
-		for(color of PALETTE){
-			dist = dist_to_pixel(r, g, b,color);
-			if(dist < min_dist){
-				min_dist = dist;
-				closest_color = color;
-			}
-		}
-		
-		return closest_color;
-	}
+    function find_closest_palette_color(r, g, b) {
+        let min_dist = Infinity;
+        let closest_color = [0, 0, 0];
+        for (let color of PALETTE) {
+            let dist = Math.sqrt(
+                Math.pow(r - color[0], 2) +
+                Math.pow(g - color[1], 2) +
+                Math.pow(b - color[2], 2)
+            );
+            if (dist < min_dist) {
+                min_dist = dist;
+                closest_color = color;
+            }
+        }
+        return closest_color;
+    }
 	
-	function addToPixel(pixels, pos, quant_error, fraction){
-		if( pos < pixels.length ){
-			pixels[pos+0] += quant_error[0] * fraction ;
-			if(pixels[pos+0] < 0)   pixels[pos+0] = 0;
-			if(pixels[pos+0] > 255) pixels[pos+0] = 255;
-			
-			pixels[pos+1] += quant_error[1] * fraction ;
-			if(pixels[pos+1] < 0)   pixels[pos+1] = 0;
-			if(pixels[pos+1] > 255) pixels[pos+1] = 255;
-			
-			pixels[pos+2] += quant_error[2] * fraction ;
-			if(pixels[pos+2] < 0)   pixels[pos+2] = 0;
-			if(pixels[pos+2] > 255) pixels[pos+2] = 255;
-		}
-		
-	}
+    function addToPixel(pixels, pos, quant_error, fraction) {
+        if (pos >= 0 && pos < pixels.length) {
+            for (let i = 0; i < 3; i++) {
+                pixels[pos + i] += quant_error[i] * fraction;
+                pixels[pos + i] = Math.min(255, Math.max(0, pixels[pos + i])); // Clamp values
+            }
+        }
+    }
 
-	function dither(){
-		var R = 0, G = 1, B = 2, A=3;
-		var oldR, oldG, oldB, newRGB, quant_error, pos;
-		var height=384, width=640;
-		
-		var ctx = document.getElementById('editedCanvas').getContext('2d');
-		var imgData = ctx.getImageData(0,0,width,height);
-		var pixels = imgData.data;
-		
-		for(var y =0; y<height*4; y++){
-			for (var x=0;x<width*4;x+=4){
-				pos = x + y*width;
-				oldR = pixels[pos+R];	/*save original red*/
-				oldG = pixels[pos+G];
-				oldB = pixels[pos+B];
-				newRGB = find_closest_palette_color(oldR, oldG, oldB);
-				pixels[pos+R] = newRGB[R];	/*update red*/
-				pixels[pos+G] = newRGB[G];
-				pixels[pos+B] = newRGB[B];
-				pixels[pos+A] = 255;
-				
-				quant_error = [ (oldR-newRGB[R]), (oldG-newRGB[G]), (oldB-newRGB[B]) ];
+    function dither() {
+        const R = 0, G = 1, B = 2, A = 3;
+        const width = 640, height = 384;
 
-				addToPixel(pixels, x+4 +  y *  width, quant_error, 7.0 / ditherLevel);
-				addToPixel(pixels, x-4 + (y+4)*width, quant_error, 3.0 / ditherLevel);
-				addToPixel(pixels, x   + (y+4)*width, quant_error, 5.0 / ditherLevel);
-				addToPixel(pixels, x+4 + (y+4)*width, quant_error, 1.0 / ditherLevel);
-				
-			}
-		}
-		ctx = document.getElementById('editedCanvas').getContext('2d');
-		ctx.putImageData(imgData, 0, 0);
-	}
+        const ctx = document.getElementById('editedCanvas').getContext('2d');
+        const imgData = ctx.getImageData(0, 0, width, height);
+        const pixels = imgData.data;
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const pos = (y * width + x) * 4;
+                const oldR = pixels[pos + R];
+                const oldG = pixels[pos + G];
+                const oldB = pixels[pos + B];
+                
+                const newRGB = find_closest_palette_color(oldR, oldG, oldB);
+                pixels[pos + R] = newRGB[0];
+                pixels[pos + G] = newRGB[1];
+                pixels[pos + B] = newRGB[2];
+                pixels[pos + A] = 255; // Fully opaque
+
+                const quant_error = [
+                    oldR - newRGB[0],
+                    oldG - newRGB[1],
+                    oldB - newRGB[2]
+                ];
+
+                // Error diffusion
+                addToPixel(pixels, pos + 4, quant_error, 7.0 / ditherLevel); // Right
+                addToPixel(pixels, pos - 4 + (width * 4), quant_error, 3.0 / ditherLevel); // Bottom-left
+                addToPixel(pixels, pos + (width * 4), quant_error, 5.0 / ditherLevel); // Bottom
+                addToPixel(pixels, pos + 4 + (width * 4), quant_error, 1.0 / ditherLevel); // Bottom-right
+            }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+    }
 	
 	</script>
 </body>
