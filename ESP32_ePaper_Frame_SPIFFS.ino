@@ -11,7 +11,6 @@ TaskHandle_t Task1 = NULL;
 
 void driveDisplay(void *parameter) {  //running on another core to avoid watchdog timer error
   while (true) {
-    Serial.println("task running on another core");
     TurnOnDisplay();
     vTaskSuspend(Task1);
   }

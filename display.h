@@ -69,27 +69,24 @@ bool isDisplayBusy() {
 void EPD_7IN3F_BusyHigh()  // If BUSYN=0 then waiting
 {
   while (!digitalRead(PIN_SPI_BUSY)) {
-    //yield();
     delay(1);
   }
 }
 
 void TurnOnDisplay() {  //runs on another core to avoid watchdog timer error
-  Serial.println("TurnOnDisplay called");
   Serial.println("power on");
   sendCommand(0x04);  // POWER_ON
   EPD_7IN3F_BusyHigh();
-  //yield();
+
   Serial.println("refresh");
   sendCommand(0x12);  // DISPLAY_REFRESH
   sendData(0x00);
   EPD_7IN3F_BusyHigh();
-  //yield();
+
   Serial.println("power off");
   sendCommand(0x02);  // POWER_OFF
   sendData(0x00);
   EPD_7IN3F_BusyHigh();
-  //yield();
 }
 
 int IfInit(void) {
@@ -212,60 +209,40 @@ void Sleep(void) {
 }
 
 // Converts one pixel from input encoding (2 bits) to output encoding (4 bits).
-byte convertPixel(char input, byte mask, int shift) {
-  const byte value = (input & mask) >> shift;
+byte convertPixel(byte value) {
   switch (value) {
     case 0x0:
-      // Black: 000 -> 0000
-      return 0x0;
+      return EPD_7IN3F_BLACK;  // BLACK
     case 0x1:
-      // White: 001 -> 0011
-      return 0x3;
+      return EPD_7IN3F_WHITE;  // WHITE
     case 0x2:
-      // Green: 010 -> 0101
-      return 0x5;
+      return EPD_7IN3F_GREEN;  // GREEN
     case 0x3:
-      // Blue: 011 -> 0110
-      return 0x6;
+      return EPD_7IN3F_BLUE;  // BLUE
     case 0x4:
-      // Red: 100 -> 0100
-      return 0x4;
+      return EPD_7IN3F_RED;  // RED
     case 0x5:
-      // Yellow: 101 -> 0111
-      return 0x7;
+      return EPD_7IN3F_YELLOW;  // YELLOW
     case 0x6:
-      // Orange: 110 -> 1000
-      return 0x8;
+      return EPD_7IN3F_ORANGE;  // ORANGE
     default:
-      Serial.printf("Unknown pixel value: 0x%02X\n", value);
-      return 0x0;
-  }
-}
-
-void EPD_7IN3F_DisplaySegment(const char* image, unsigned long startRow, unsigned long endRow) {
-  for (unsigned long i = startRow; i < endRow; i++) {
-    for (unsigned long j = 0; j < 800 / 2; j++) {
-      sendData(image[j + 800 / 2 * i]);
-    }
-    // Yield to the FreeRTOS scheduler to reset the watchdog
-    delay(1);
-  }
-}
-
-void EPD_7IN3F_Display(const char* image) {
-  const unsigned long rowsPerChunk = 10;  // Number of rows to process per segment
-
-  for (unsigned long startRow = 0; startRow < 480; startRow += rowsPerChunk) {
-    unsigned long endRow = startRow + rowsPerChunk;
-    if (endRow > 480) endRow = 480;  // Ensure we don't exceed the total rows
-    EPD_7IN3F_DisplaySegment(image, startRow, endRow);
+      return EPD_7IN3F_CLEAN;  // CLEAN
   }
 }
 
 // Loads partial image data onto the display.
+// Loads image data onto the display.
 void loadImage(const char* image_data, size_t length) {
-  Serial.printf("Loading image data: %d bytes\n", length);
-  EPD_7IN3F_Display(image_data);
+    Serial.printf("Loading image data: %d bytes\n", length);
+
+    for (size_t i = 0; i < length; i++) {
+        // Extract 4-bit color values for two pixels from each byte
+        byte p1 = (image_data[i] >> 4) & 0x0F; // Upper 4 bits (first pixel)
+        byte p2 = image_data[i] & 0x0F;        // Lower 4 bits (second pixel)
+
+        // Combine these into one byte to send as two packed pixels
+        sendData((p1 << 4) | p2);
+    }
 }
 
 #endif  // display_h
