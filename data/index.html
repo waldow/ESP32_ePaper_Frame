@@ -83,6 +83,7 @@ body{
 			<input type="file"  id="inputFile"/>Load Image
 		</label>
 		<button class="red-button" onclick="dither()">Dither</button>
+		<button class="red-button" onclick="stretchToFit()">Stretch to Fit</button>
 		</br>
 		
 		<div  style="width: 100%; display: none;" >
@@ -229,15 +230,29 @@ body{
 	function handleFiles(e) {
 		var ctxOrigin = document.getElementById('originalCanvas').getContext('2d');
 		var ctxEdited = document.getElementById('editedCanvas').getContext('2d');
-		var img = new Image;
+		var img = new Image();
 		img.src = URL.createObjectURL(e.target.files[0]);
-		img.onload = function() {
-			ctxOrigin.drawImage(img, 0, 0, img.width,    img.height,    /*source rectangle*/
-			   0, 0, 800, 480); /*destination rectangle*/
-			ctxEdited.drawImage(img, 0, 0, img.width,    img.height,     /*source rectangle*/
-			   0, 0, 800, 480); /*destination rectangle*/
-		}
+		img.onload = function () {
+			const canvasWidth = 800;
+			const canvasHeight = 480;
+
+			// Clear the canvas and fill it with white
+			ctxOrigin.fillStyle = "white";
+			ctxOrigin.fillRect(0, 0, canvasWidth, canvasHeight);
+			ctxEdited.fillStyle = "white";
+			ctxEdited.fillRect(0, 0, canvasWidth, canvasHeight);
+
+			// Calculate centered position without scaling
+			const offsetX = (canvasWidth - img.width) / 2;
+			const offsetY = (canvasHeight - img.height) / 2;
+
+			// Draw the image centered without stretching
+			ctxOrigin.drawImage(img, 0, 0, img.width, img.height, offsetX, offsetY, img.width, img.height);
+			ctxEdited.drawImage(img, 0, 0, img.width, img.height, offsetX, offsetY, img.width, img.height);
+		};
 	}
+
+
 
 	    var PALETTE = [
         [0, 0, 0],        // Black
@@ -319,6 +334,46 @@ body{
 
         ctx.putImageData(imgData, 0, 0);
     }
+	
+	function stretchToFit() {
+		const ctxEdited = document.getElementById('editedCanvas').getContext('2d');
+		const img = new Image();
+		img.src = document.getElementById('inputFile').files[0]
+			? URL.createObjectURL(document.getElementById('inputFile').files[0])
+			: null;
+
+		if (!img.src) {
+			alert("Please upload an image first!");
+			return;
+		}
+
+		img.onload = function () {
+			const canvasWidth = 800;
+			const canvasHeight = 480;
+
+			// Clear the canvas and fill it with white
+			ctxEdited.fillStyle = "white";
+			ctxEdited.fillRect(0, 0, canvasWidth, canvasHeight);
+
+			// Calculate scaling factors for width and height
+			const scaleWidth = canvasWidth / img.width;
+			const scaleHeight = canvasHeight / img.height;
+
+			// Use the smaller scale factor to maintain aspect ratio
+			const scale = Math.min(scaleWidth, scaleHeight);
+
+			// Calculate the new dimensions of the image
+			const newWidth = img.width * scale;
+			const newHeight = img.height * scale;
+
+			// Center the scaled image on the canvas
+			const offsetX = (canvasWidth - newWidth) / 2;
+			const offsetY = (canvasHeight - newHeight) / 2;
+
+			// Draw the image with maintained proportions
+			ctxEdited.drawImage(img, 0, 0, img.width, img.height, offsetX, offsetY, newWidth, newHeight);
+		};
+	}
 	
 	</script>
 </body>
