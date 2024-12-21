@@ -83,42 +83,13 @@ body{
 			<input type="file"  id="inputFile"/>Load Image
 		</label>
 		<button class="red-button" onclick="dither()">Dither</button>
-		
-		<table style="width:100%">
-		  <tr>
-			<td style="width:110px">Contrast: <span id="contrastLevel"></td>
-			<td>
-				<div class="slidecontainer">
-					<input type="range" min="-100" max="100" value="0" class="slider" id="rangeContrast">
-				</div>
-			</td>
-		  </tr>
-		  <tr>
-			<td>Brightness: <span id=""></td>
-			<td>
-				<div class="slidecontainer">
-					<input type="range" min="-100" max="100" value="0" class="slider" id="">
-				</div>
-			</td>
-		  </tr>
-		  <tr>
-			<td>Dithering: <span id="ditherLevel"></span></td>
-			<td>
-				<div class="slidecontainer">
-					<input type="range" min="1" max="80" value="16" class="slider" id="rangeDither">
-				</div>
-			</td>
-		  </tr>
-		</table>
 		</br>
-
-		
 		
 		<div  style="width: 100%; display: none;" >
-			<canvas style="width: 100%;" width="640" height="384" id="originalCanvas"/>
+			<canvas style="width: 100%;" width="800" height="480" id="originalCanvas"/>
 		</div>
 		<div style="width: 100%; border: 3px solid black; border-radius: 5px; background:white;" >
-			<canvas style="width: 100%;" width="640" height="384"  id="editedCanvas"/>
+			<canvas style="width: 100%;" width="800" height="480"  id="editedCanvas"/>
 		</div>
 		
 		<button onclick="uploadImage()" class="red-button" style="width: 100%; margin: 16px 2px 5px;">Upload to Frame</button>
@@ -126,19 +97,23 @@ body{
 
 	<script>
 	
-	
-	
-	
-	function rbg2bit(r, b, g){
-		switch(r) {
-		  case 0:	/*black*/
-			return 0;
-		case 255:	/*white*/
-			return 1;
-		case 128:	/*red*/
-			return 3;
-			}
+	// Map colors to their 4-bit indices
+	const COLOR_MAP = {
+		"0,0,0": 0,        // Black
+		"255,255,255": 1,  // White
+		"0,255,0": 2,      // Green
+		"0,0,255": 3,      // Blue
+		"255,0,0": 4,      // Red
+		"255,255,0": 5,    // Yellow
+		"255,165,0": 6     // Orange
+	};
+
+	// Update rbg2bit to map RGB values to indices
+	function rbg2bit(r, g, b) {
+		const key = `${r},${g},${b}`;
+		return COLOR_MAP[key] !== undefined ? COLOR_MAP[key] : 0; // Default to black if undefined
 	}
+	
 	var PALETTE = [[0  , 0  , 0  ], [255, 255, 255], [128, 0  , 0  ]];
 	function uploadImage(){
 		console.log("uploadImage");
@@ -185,28 +160,24 @@ body{
 			websocket.close();
 		}	
 	}
-	function sendImage(){
-		var ctx = document.getElementById('editedCanvas').getContext('2d');
-		var imgData = ctx.getImageData(0,0,640,384);
-		var d = imgData.data;
-		var pixDataArray = new Array(640*384/4), j=0;
-		
-		for(var i=0; i<d.length;){   /*r,g,b,a*/
-			pix0 = rbg2bit(d[i],d[i+1],d[i+2]);
-			i+=4;
-			pix1 = rbg2bit(d[i],d[i+1],d[i+2]);
-			i+=4;
-			pix2 = rbg2bit(d[i],d[i+1],d[i+2]);
-			i+=4;
-			pix3 = rbg2bit(d[i],d[i+1],d[i+2]);
-			i+=4;
-			pixByte = (pix0<<6)|(pix1<<4)|(pix2<<2)|(pix3<<0);
-			if(j>=pixDataArray.length)break;
-			pixDataArray[j++] = pixByte;	
+	
+	function sendImage() {
+		const ctx = document.getElementById('editedCanvas').getContext('2d');
+		const imgData = ctx.getImageData(0, 0, 800, 480);
+		const d = imgData.data;
+		const pixDataArray = new Array((800 * 480) / 2); // 1 byte per 2 pixels
+		let j = 0;
+
+		for (let i = 0; i < d.length; i += 8) { // Process two pixels at a time (8 bytes per two pixels)
+			const pix0 = rbg2bit(d[i], d[i + 1], d[i + 2]);       // Pixel 1
+			const pix1 = rbg2bit(d[i + 4], d[i + 5], d[i + 6]);   // Pixel 2
+			const pixByte = (pix0 << 4) | pix1; // Combine into a single byte
+			pixDataArray[j++] = pixByte;
 		}
-		bytesArray = new Uint8Array(pixDataArray);
-		websocket.send( bytesArray.buffer );
-		console.log("SENDED");
+
+		const bytesArray = new Uint8Array(pixDataArray);
+		websocket.send(bytesArray.buffer); // Send the packed data
+		console.log("SENT");
 		websocket.close();
 	}
 	
@@ -215,29 +186,23 @@ body{
 		console.log(evt.data);//undifened
 	}
 
-  
-  
-  
-  
-	
-	
 	var ditherLevel = 16;
-	var sliderDither = document.getElementById("rangeDither");
-	var outputDither = document.getElementById("ditherLevel");
+	var sliderDither = 16;
+	var outputDither = 16;
 	outputDither.innerHTML = sliderDither.value;
 	sliderDither.oninput = function() {
 	  outputDither.innerHTML = this.value;
 	  ditherLevel = this.value;
 	};
 	
-	var sliderContrast = document.getElementById("rangeContrast");
-	var outputContrast = document.getElementById("contrastLevel");
+	var sliderContrast = 0;
+	var outputContrast = 0;
 	outputContrast.innerHTML = sliderContrast.value;
 	sliderContrast.oninput = function() {
 	
 		outputContrast.innerHTML = this.value;
 		var ctx = document.getElementById('originalCanvas').getContext('2d');
-		var imgData = ctx.getImageData(0,0,640,384);
+		var imgData = ctx.getImageData(0,0,800,480);
 		
 		imgData = contrastImage(imgData, this.value);
 		
@@ -268,9 +233,9 @@ body{
 		img.src = URL.createObjectURL(e.target.files[0]);
 		img.onload = function() {
 			ctxOrigin.drawImage(img, 0, 0, img.width,    img.height,    /*source rectangle*/
-			   0, 0, 640, 384); /*destination rectangle*/
+			   0, 0, 800, 480); /*destination rectangle*/
 			ctxEdited.drawImage(img, 0, 0, img.width,    img.height,     /*source rectangle*/
-			   0, 0, 640, 384); /*destination rectangle*/
+			   0, 0, 800, 480); /*destination rectangle*/
 		}
 	}
 
@@ -319,7 +284,7 @@ body{
 
     function dither() {
         const R = 0, G = 1, B = 2, A = 3;
-        const width = 640, height = 384;
+        const width = 800, height = 480;
 
         const ctx = document.getElementById('editedCanvas').getContext('2d');
         const imgData = ctx.getImageData(0, 0, width, height);
