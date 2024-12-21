@@ -1,5 +1,5 @@
 # ESP32_ePaper_Frame
-This fork tries to create a Smart E-Paper frame controlled over wifi, using ESP32 and 7-color AceP 7.3inch waveshare E-Ink display.
+This fork tries to create a Smart E-Paper frame controlled over wifi, using ESP32-S3 and 7-color AceP 7.3inch waveshare E-Ink display.
 
 ![Demo Image 1](https://raw.githubusercontent.com/dani3lwinter/ESP32_ePaper_Frame/master/readme%20images/img1.jpg)
 
