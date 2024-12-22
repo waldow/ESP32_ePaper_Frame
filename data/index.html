@@ -92,7 +92,12 @@ body{
 		<div style="width: 100%; border: 3px solid black; border-radius: 5px; background:white;" >
 			<canvas style="width: 100%;" width="800" height="480"  id="editedCanvas"/>
 		</div>
-		
+		<td>Size: <span id="sizeLevel"></span></td>
+			<td>
+				<div class="slidecontainer">
+					<input type="range" min="1" max="100" value="50" class="slider" id="rangeSize">
+				</div>
+			</td>
 		<button onclick="uploadImage()" class="red-button" style="width: 100%; margin: 16px 2px 5px;">Upload to Frame</button>
 	</div>
 
@@ -252,6 +257,43 @@ body{
 		};
 	}
 
+	document.getElementById('rangeSize').addEventListener('input', function () {
+		const sliderValue = this.value; // Get slider value
+		const ctxEdited = document.getElementById('editedCanvas').getContext('2d');
+		const img = new Image();
+		img.src = document.getElementById('inputFile').files[0]
+			? URL.createObjectURL(document.getElementById('inputFile').files[0])
+			: null;
+
+		if (!img.src) {
+			alert("Please upload an image first!");
+			return;
+		}
+
+		img.onload = function () {
+			const canvasWidth = 800;
+			const canvasHeight = 480;
+
+			// Clear the canvas and fill it with white
+			ctxEdited.fillStyle = "white";
+			ctxEdited.fillRect(0, 0, canvasWidth, canvasHeight);
+
+			// Calculate the scaling factor based on the slider value
+			const maxScale = Math.min(canvasWidth / img.width, canvasHeight / img.height);
+			const scale = (sliderValue / 100) * maxScale;
+
+			// Calculate the new dimensions of the image
+			const newWidth = img.width * scale;
+			const newHeight = img.height * scale;
+
+			// Center the scaled image on the canvas
+			const offsetX = (canvasWidth - newWidth) / 2;
+			const offsetY = (canvasHeight - newHeight) / 2;
+
+			// Draw the resized image
+			ctxEdited.drawImage(img, 0, 0, img.width, img.height, offsetX, offsetY, newWidth, newHeight);
+		};
+	});
 
 
 	    var PALETTE = [
