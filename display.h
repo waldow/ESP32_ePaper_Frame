@@ -66,14 +66,27 @@ bool isDisplayBusy() {
   return (digitalRead(PIN_SPI_BUSY) == LOW);
 }
 
-void EPD_7IN3F_BusyHigh()  // If BUSYN=0 then waiting
+int  EPD_7IN3F_BusyHigh(int max=20000)  // If BUSYN=0 then waiting
 {
-  while (!digitalRead(PIN_SPI_BUSY)) {
-    delay(1);
-  }
+  int cnt =0;
+    while(!digitalRead(PIN_SPI_BUSY)) {
+     //  Serial.print(".");
+        delay(10);
+        cnt++;
+       
+        if(cnt > max)
+        {
+      //     Serial.println("EPD_7IN3F_BusyHigh max max max max v");
+          return -1;
+        }
+    }
+  //   Serial.println("EPD_7IN3F_BusyHigh");
+  //    Serial.println(cnt);
+    return cnt;
 }
 
-void TurnOnDisplay() {  //runs on another core to avoid watchdog timer error
+int TurnOnDisplay() {  //runs on another core to avoid watchdog timer error
+int cnt;
   Serial.println("power on");
   sendCommand(0x04);  // POWER_ON
   EPD_7IN3F_BusyHigh();
@@ -81,7 +94,9 @@ void TurnOnDisplay() {  //runs on another core to avoid watchdog timer error
   Serial.println("refresh");
   sendCommand(0x12);  // DISPLAY_REFRESH
   sendData(0x00);
-  EPD_7IN3F_BusyHigh();
+  cnt = EPD_7IN3F_BusyHigh(4226);
+
+  return cnt;
 
   Serial.println("power off");
   sendCommand(0x02);  // POWER_OFF
@@ -111,6 +126,9 @@ int initDisplay(void) {
   // Initialize the display.
   resetDisplay();
   delay(20);
+  EPD_7IN3F_BusyHigh();
+
+  sendCommand(0x04);  // POWER_ON
   EPD_7IN3F_BusyHigh();
 
   sendCommand(0xAA);  // CMDH
@@ -144,12 +162,20 @@ int initDisplay(void) {
   sendData(0x1F);
   sendData(0x1F);
   sendData(0x2C);
-
+ 
+ /*
   sendCommand(0x06);
   sendData(0x6F);
   sendData(0x1F);
   sendData(0x1F);
   sendData(0x22);
+*/
+
+  sendCommand(0x06);
+  sendData(0x6F);
+  sendData(0x1F);
+  sendData(0x16);
+  sendData(0x25);
 
   sendCommand(0x08);
   sendData(0x6F);

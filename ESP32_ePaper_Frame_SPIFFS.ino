@@ -10,8 +10,22 @@ AsyncWebSocket ws("/test");
 TaskHandle_t Task1 = NULL;
 
 void driveDisplay(void *parameter) {  //running on another core to avoid watchdog timer error
+int cnt;
   while (true) {
-    TurnOnDisplay();
+
+    for(int retry=0;retry < 4;retry++) {
+      cnt = TurnOnDisplay();
+      Serial.print("cnt=");
+      Serial.println(cnt,DEC);
+      
+      if(cnt > 3255 ) {  // If update takes to long retry .  Need to reconfig this value 
+        Serial.print("retry=");
+        Serial.println(retry,DEC);
+      }else {
+          break;
+      }
+    }
+
     vTaskSuspend(Task1);
   }
 }
